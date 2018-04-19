@@ -1,0 +1,6 @@
+{
+    "drivingLicenseServiceUrl":"https://drivinf-license.com",
+    "drivingLicenseEndPoint": "verify",
+    "dbURL":"mongodb://test:test1234@ds119969.mlab.com:19969/claimants",
+    "port":"9000"
+}
