@@ -6,7 +6,7 @@
   "scripts": {
     "start": "nodemon server.js",
     "integration": "NODE_ENV=test nyc mocha --reporter=landing tests/specs/integration/*spec.js --timeout 10000 --exit || true",
-    "unit": "NODE_ENV=test nyc mocha --reporter=landing tests/specs/unit/*spec.js --timeout 10000 --exit || true",
+    "unit": "NODE_ENV=test nyc mocha  tests/specs/unit/*spec.js --timeout 10000 --exit || true",
     "test": "npm run unit && npm run integration"
   },
   "author": "",
@@ -46,7 +46,7 @@
   },
   "nyc": {
     "exclude": [
-      "**/*.spec.js",
+      "**/*spec.js",
       "build"
     ]
   }

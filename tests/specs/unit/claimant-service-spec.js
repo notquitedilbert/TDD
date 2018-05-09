@@ -1,3 +1,5 @@
+
+const { NO_CONTENT,NOT_FOUND,BAD_REQUEST } = require('http-status-codes');
 const chai = require('chai');
 const expect = chai.expect;
 const sinon = require('sinon');
@@ -6,11 +8,17 @@ const Claimant = require('../../../models/Claimant');
 const service = require('../../../services/claimant-service');
 const rewire = require('rewire');
 const drivingLicenseService = require('../../../services/driving-license-service');
-chai.use(sinonChai);
+
 
 const sandbox = sinon.sandbox.create();
+const claimantServiceMock = rewire('../../../services/claimant-service');
+chai.use(sinonChai);
 
 describe('Claimant Service', () => {
+
+    afterEach(() => {
+        sandbox.restore();
+    });
 
     let expectedSingleResult = {
         '_id':'1234567890',
@@ -30,9 +38,6 @@ describe('Claimant Service', () => {
             findStub = sandbox.stub(Claimant,'find');
         });
 
-        afterEach(() => {
-            sandbox.restore();
-        });
 
         it('should retrieve all claimants', (done) => {
             const res = {
@@ -61,9 +66,6 @@ describe('Claimant Service', () => {
             findByIdStub = sandbox.stub(Claimant,'findById');
         });
 
-        afterEach(() => {
-            sandbox.restore();
-        });
 
         it('should retieve a claimant by id', (done) => {
             const res = {
@@ -110,18 +112,14 @@ describe('Claimant Service', () => {
     describe('Create Claimant', () => {
         let createStub;
         let req ={};
-        let claimantServiceMock;
+
         let drivingLicenseServiceStub;
 
         beforeEach(() => {
             createStub = sandbox.stub(Claimant, 'create');
-            claimantServiceMock = rewire('../../../services/claimant-service');
             drivingLicenseServiceStub = sandbox.stub(drivingLicenseService,'validate');
         });
 
-        afterEach(() => {
-            sandbox.restore();
-        });
 
 
         it('should create a claimant', (done) => {
@@ -231,6 +229,154 @@ describe('Claimant Service', () => {
                     done();
                 });
 
+        });
+    });
+
+    describe('update Claimant', () => {
+        let updateStub;
+        let req = {};
+        const createUpdateRequest = claimantId => ({
+            params: claimantId,
+            body:{
+                firstName:'John',
+                lastName:'Doe'
+            }
+        });
+
+        beforeEach(()=>{
+            updateStub = sandbox.stub(Claimant,'findByIdAndUpdate');
+        });
+
+        it('should update claimant details', async () => {
+            const res = {
+                send: sandbox.spy(),
+                status: sandbox.stub()
+            };
+            req = createUpdateRequest('12345');
+
+            expectedSingleResult.street = 'new Street';
+            res.status.withArgs(NO_CONTENT).returns(res);
+
+            updateStub.resolves(expectedSingleResult);
+
+            await service.updateClaimant(req,res);
+            expect(res.send).to.have.been.calledOnce;
+        });
+
+        it('should return ${NOT_FOUND} when claimant does not exist', async () => {
+            const res = {
+                send: sandbox.spy(),
+                status:sandbox.stub()
+            };
+            req = {
+                body:null,
+                params:{claimantID :'999999'}
+            };
+
+            req.body = {
+                firstName:'John',
+                lastName:'Doe'
+            };
+            const errorMessage = 'Claimant not found matching given ID';
+
+            updateStub.rejects(errorMessage);
+
+            res.status.withArgs(NOT_FOUND).returns(res);
+
+            await service.updateClaimant(req,res);
+
+            expect(res.send).to.have.been.calledWith(errorMessage);
+        });
+
+        it('should prevent a claimants NINO from being updated', async () => {
+
+            const res = {
+                send: sandbox.spy(),
+                status:sandbox.stub()
+            };
+            req = createUpdateRequest('12345');
+            req.body.nino ='BB123456B';
+            joiMock = {
+                validate:(body,schema,cb) =>{
+                    cb(null);
+                }
+            };
+            claimantServiceMock.__set__('Joi',joiMock);
+            const expectedErrorMessage = 'ValidationError';
+
+            res.status.withArgs(BAD_REQUEST).returns(res);
+            await service.updateClaimant(req,res);
+
+            expect(res.send).to.have.been.calledWith(expectedErrorMessage);
+        });
+    });
+
+    describe('delete claimant', () => {
+
+        let findByIdAndRemoveStub;
+        let req = {};
+
+        beforeEach(() => {
+            findByIdAndRemoveStub = sandbox.stub(Claimant,'findByIdAndRemove');
+
+        });
+
+        it('Should delete a claiimant', async () => {
+            const res = {
+                send: sandbox.spy()
+            };
+            req = {
+                params:{claimantId:'123456'}
+            };
+            findByIdAndRemoveStub.resolves(expectedSingleResult);
+
+            await service.deleteClaimant(req,res);
+            expect(res.send).to.have.been.calledOnce;
+        });
+
+        it(`should return ${NOT_FOUND} when claimant does not exist`, async () => {
+            const res = {
+                send:sandbox.spy(),
+                status: sandbox.stub()
+            };
+
+            req = {
+                params:{claimantId : '9999999'}
+            };
+
+            const errorMessage = `Claimant matching ID ${req.params.claimantId} not found`;
+            findByIdAndRemoveStub.resolves(null);
+
+            res.status.withArgs(NOT_FOUND).returns(res);
+
+            await service.deleteClaimant(req,res);
+
+            expect(res.send).to.have.been.calledWith(errorMessage);
+
+        });
+    });
+
+    describe('Search by NINO', () => {
+        let findOneStub;
+        let req = {};
+
+        beforeEach(()=>{
+            findOneStub = sandbox.stub(Claimant,'findOne');
+        });
+
+
+        it('should retrieve claimant by NINO', async () => {
+            const res = {
+                send:sandbox.spy()
+            };
+            req = {params:{
+                nino:'JK123456A'
+            }};
+            findOneStub.resolves(expectedSingleResult);
+
+            await service.getClaimantByNINO(req,res);
+
+            expect(res.send).to.have.been.calledOnce;
         });
     });
 });

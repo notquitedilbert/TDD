@@ -1,14 +1,19 @@
-const axios = require('axios');
+const rp = require('request-promise');
 const config = require('config');
 
 const serviceUrl = config.get('drivingLicenseServiceUrl');
 const serviceEndpoint = config.get('drivingLicenseEndPoint');
 
-const validate = (requestPayload)=> axios.post(`${serviceUrl}/${serviceEndpoint}`,requestPayload)
-    .then((response)=>response.data)
-    .catch((err)=>{
-        err.response.data;
-    });
-
+const validate = (requestPayload)=> {
+    const options = {
+        uri:`${serviceUrl}/${serviceEndpoint}`,
+        json:true,
+        method:'POST',
+        body:requestPayload
+    };
+    return rp(options)
+        .then(parsedResponse => parsedResponse)
+        .catch(err => err);
+};
 
 module.exports = {validate};
